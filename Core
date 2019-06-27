@@ -1,0 +1,162 @@
+import javafx.application.Application;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.text.Font;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+
+import java.io.File;
+import java.util.Arrays;
+
+public class Core extends Application {
+    public int width = 1200;
+    public int height = 500;
+
+    Scene rootScene;
+
+    BorderPane rootPane;
+    MenuBar menuBar;
+    TextArea textArea;
+
+    public Editor currentEditor;
+
+    @Override
+    public void start(Stage primaryStage) throws Exception {
+        rootPane = new BorderPane();
+
+        menuBar = new MenuBar();
+
+        menuBar.setPrefWidth(width);
+
+        Menu menu1 = new Menu("File");
+
+        MenuItem newOption = new MenuItem("New");
+
+        newOption.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                textArea.clear();
+                currentEditor = null;
+                primaryStage.setTitle("Custom Editor");
+            }
+        });
+
+        MenuItem open = new MenuItem("Open...");
+
+        open.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                FileChooser fc = new FileChooser();
+
+                File file = fc.showOpenDialog(primaryStage);
+
+                if (file != null) {
+                    currentEditor = new Editor(primaryStage);
+
+                    currentEditor.open(file.toPath());
+
+                    if (!currentEditor.getText().isEmpty()) {
+                        textArea.clear();
+                        currentEditor.getText().forEach(line -> textArea.appendText(line + "\n"));
+                    }
+                }
+            }
+        });
+
+        MenuItem save = new MenuItem("Save");
+
+        save.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                if (currentEditor == null) {
+                    FileChooser fileChooser = new FileChooser();
+
+                    FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text Document (*.txt)", "*.txt");
+                    FileChooser.ExtensionFilter allFilter = new FileChooser.ExtensionFilter("All Files (*.*)", "*.*");
+
+                    fileChooser.getExtensionFilters().addAll(txtFilter, allFilter);
+
+                    File file = fileChooser.showSaveDialog(primaryStage);
+
+                    if (file != null) {
+                        currentEditor = new Editor(primaryStage);
+                        currentEditor.saveAs(file.toPath(), Arrays.asList(textArea.getText().split("\n")));
+                    }
+                } else {
+                    currentEditor.save(currentEditor.getFile(), Arrays.asList(textArea.getText().split("\n")));
+                }
+            }
+        });
+
+        MenuItem saveAs = new MenuItem("Save As...");
+
+        saveAs.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                FileChooser fileChooser = new FileChooser();
+
+                FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text Document (*.txt)", "*.txt");
+                FileChooser.ExtensionFilter allFilter = new FileChooser.ExtensionFilter("All Files (*.*)", "*.*");
+
+                fileChooser.getExtensionFilters().addAll(txtFilter, allFilter);
+
+                File file = fileChooser.showSaveDialog(primaryStage);
+
+                if (file != null) {
+                    currentEditor = new Editor(primaryStage);
+                    currentEditor.saveAs(file.toPath(), Arrays.asList(textArea.getText().split("\n")));
+                }
+            }
+        });
+
+        MenuItem close = new MenuItem("Close");
+
+        close.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                System.exit(0);
+            }
+        });
+
+        menu1.getItems().addAll(newOption, open, save, saveAs, close);
+
+        Menu menu2 = new Menu("Help");
+
+        MenuItem about = new MenuItem("About");
+
+        about.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                Alert aboutAlert = new Alert(Alert.AlertType.INFORMATION);
+                aboutAlert.setHeaderText(null);
+                aboutAlert.setTitle("About");
+                aboutAlert.setContentText("This version 1.0 of Custom Editor");
+                aboutAlert.show();
+            }
+        });
+
+        menu2.getItems().add(about);
+
+        menuBar.getMenus().addAll(menu1, menu2);
+
+        textArea = new TextArea();
+
+        rootPane.setTop(menuBar);
+        rootPane.setCenter(textArea);
+
+        rootScene = new Scene(rootPane, width, height);
+
+        primaryStage.setTitle("Custom Editor");
+
+        primaryStage.setScene(rootScene);
+        primaryStage.show();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+}
