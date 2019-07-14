@@ -2,10 +2,12 @@ import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Font;
@@ -28,6 +30,10 @@ public class Core extends Application {
     MenuBar menuBar;
     TextArea textArea;
 
+    Clipboard systemClipboard;
+
+    Stage window;
+
     int pos;
     ArrayList<Dialog> currentDialogs;
     Dialog<Pair<String, String>> replaceDialog;
@@ -37,6 +43,10 @@ public class Core extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
+        window = primaryStage;
+
+        systemClipboard = Clipboard.getSystemClipboard();
+
         currentDialogs = new ArrayList<>();
         replaceDialog = new Dialog<>();
         findDialog = new Dialog<>();
@@ -49,61 +59,30 @@ public class Core extends Application {
 
         Menu menu1 = new Menu("File");
 
-        MenuItem newOption = new MenuItem("New");
+        MenuItem newOption = new MenuItem("New \t\tCtrl+N");
 
         newOption.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-                textArea.clear();
-                currentEditor = null;
-                primaryStage.setTitle("Custom Editor");
+                newMethod();
             }
         });
 
-        MenuItem open = new MenuItem("Open...");
+        MenuItem open = new MenuItem("Open... \t\tCtrl+O");
 
         open.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-                FileChooser fc = new FileChooser();
-
-                File file = fc.showOpenDialog(primaryStage);
-
-                if (file != null) {
-                    currentEditor = new Editor(primaryStage);
-
-                    currentEditor.open(file.toPath());
-
-                    if (!currentEditor.getText().isEmpty()) {
-                        textArea.clear();
-                        currentEditor.getText().forEach(line -> textArea.appendText(line + "\n"));
-                    }
-                }
+                open();
             }
         });
 
-        MenuItem save = new MenuItem("Save");
+        MenuItem save = new MenuItem("Save \t\tCtrl+S");
 
         save.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-                if (currentEditor == null) {
-                    FileChooser fileChooser = new FileChooser();
-
-                    FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text Document (*.txt)", "*.txt");
-                    FileChooser.ExtensionFilter allFilter = new FileChooser.ExtensionFilter("All Files (*.*)", "*.*");
-
-                    fileChooser.getExtensionFilters().addAll(txtFilter, allFilter);
-
-                    File file = fileChooser.showSaveDialog(primaryStage);
-
-                    if (file != null) {
-                        currentEditor = new Editor(primaryStage);
-                        currentEditor.saveAs(file.toPath(), Arrays.asList(textArea.getText().split("\n")));
-                    }
-                } else {
-                    currentEditor.save(currentEditor.getFile(), Arrays.asList(textArea.getText().split("\n")));
-                }
+                save();
             }
         });
 
@@ -158,7 +137,61 @@ public class Core extends Application {
 
         Menu menu3 = new Menu("Edit");
 
-        MenuItem find = new MenuItem("Find...");
+        MenuItem undo = new MenuItem("Undo \t\tCtrl+Z");
+
+        undo.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                textArea.undo();
+            }
+        });
+
+        MenuItem redo = new MenuItem("Redo \t\tCtrl+Y");
+
+        redo.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                textArea.redo();
+            }
+        });
+
+        MenuItem cut = new MenuItem("Cut \t\t\tCtrl+X");
+
+        cut.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                textArea.cut();
+            }
+        });
+
+        MenuItem copy = new MenuItem("Copy \t\tCtrl+C");
+
+        copy.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                textArea.copy();
+            }
+        });
+
+        MenuItem paste = new MenuItem("Paste \t\tCtrl+V");
+
+        paste.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                textArea.paste();
+            }
+        });
+
+        MenuItem delete = new MenuItem("Delete \t\tDel");
+
+        delete.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                textArea.replaceSelection("");
+            }
+        });
+
+        MenuItem find = new MenuItem("Find... \t\tCtrl+F");
 
         find.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -167,7 +200,7 @@ public class Core extends Application {
             }
         });
 
-        MenuItem replace = new MenuItem("Replace...");
+        MenuItem replace = new MenuItem("Replace... \t\tCtrl+R");
 
         replace.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -176,7 +209,38 @@ public class Core extends Application {
             }
         });
 
-        menu3.getItems().addAll(find, replace);
+        MenuItem selectAll = new MenuItem("Select All \t\tCtrl+A");
+
+        selectAll.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                textArea.selectAll();
+            }
+        });
+
+        menu3.getItems().addAll(undo, redo, cut, copy, paste, delete, new SeparatorMenuItem(), find, replace, new SeparatorMenuItem(), selectAll);
+
+        menu3.setOnShowing(new EventHandler<Event>() {
+            @Override
+            public void handle(Event event) {
+                paste.setDisable(!systemClipboard.hasString());
+
+                undo.setDisable(!textArea.isUndoable());
+
+                redo.setDisable(!textArea.isRedoable());
+
+
+                if (textArea.getSelectedText().equals("")) {
+                    cut.setDisable(true);
+                    copy.setDisable(true);
+                    delete.setDisable(true);
+                } else {
+                    cut.setDisable(false);
+                    copy.setDisable(false);
+                    delete.setDisable(false);
+                }
+            }
+        });
 
         menuBar.getMenus().addAll(menu1, menu3, menu2);
 
@@ -189,6 +253,30 @@ public class Core extends Application {
 
         rootScene = new Scene(rootPane, width, height);
 
+        KeyCombination findCombo = new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN);
+        KeyCombination replaceCombo = new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN);
+        KeyCombination newCombo = new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN);
+        KeyCombination openCombo = new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN);
+        KeyCombination saveCombo = new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN);
+
+        rootScene.setOnKeyPressed(new EventHandler<KeyEvent>() {
+            @Override
+            public void handle(KeyEvent event) {
+                if (findCombo.match(event)) {
+                    findWord();
+                } else if (replaceCombo.match(event)) {
+                    replace();
+                } else if (newCombo.match(event)) {
+                    newMethod();
+                } else if (openCombo.match(event)) {
+                    open();
+                } else if (saveCombo.match(event)) {
+                    save();
+                }
+
+            }
+        });
+
         primaryStage.setTitle("Custom Editor");
 
         primaryStage.setScene(rootScene);
@@ -199,11 +287,54 @@ public class Core extends Application {
         launch(args);
     }
 
+    public void newMethod() {
+        textArea.clear();
+        currentEditor = null;
+        window.setTitle("Custom Editor");
+    }
+
+    public void open() {
+        FileChooser fc = new FileChooser();
+
+        File file = fc.showOpenDialog(window);
+
+        if (file != null) {
+            currentEditor = new Editor(window);
+
+            currentEditor.open(file.toPath());
+
+            if (!currentEditor.getText().isEmpty()) {
+                textArea.clear();
+                currentEditor.getText().forEach(line -> textArea.appendText(line + "\n"));
+            }
+        }
+    }
+
+    public void save() {
+        if (currentEditor == null) {
+            FileChooser fileChooser = new FileChooser();
+
+            FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text Document (*.txt)", "*.txt");
+            FileChooser.ExtensionFilter allFilter = new FileChooser.ExtensionFilter("All Files (*.*)", "*.*");
+
+            fileChooser.getExtensionFilters().addAll(txtFilter, allFilter);
+
+            File file = fileChooser.showSaveDialog(window);
+
+            if (file != null) {
+                currentEditor = new Editor(window);
+                currentEditor.saveAs(file.toPath(), Arrays.asList(textArea.getText().split("\n")));
+            }
+        } else {
+            currentEditor.save(currentEditor.getFile(), Arrays.asList(textArea.getText().split("\n")));
+        }
+    }
+
     public void findWord() {
         if (!currentDialogs.contains(findDialog)) {
             currentDialogs.add(findDialog);
 
-            if(findDialog.getDialogPane().getButtonTypes().isEmpty()) {
+            if (findDialog.getDialogPane().getButtonTypes().isEmpty()) {
                 findDialog.setTitle("Find");
                 findDialog.setHeaderText(null);
 
@@ -240,7 +371,7 @@ public class Core extends Application {
                     @Override
                     public void handle(ActionEvent event) {
                         while ((pos = textArea.getText().toUpperCase().indexOf(word.getText().toUpperCase(), pos)) >= 0) {
-                            textArea.selectRange(pos,(pos + word.getText().length()));
+                            textArea.selectRange(pos, (pos + word.getText().length()));
                             pos += word.getText().length();
                             break;
                         }
@@ -263,7 +394,7 @@ public class Core extends Application {
         if (!currentDialogs.contains(replaceDialog)) {
             currentDialogs.add(replaceDialog);
 
-            if(replaceDialog.getDialogPane().getButtonTypes().isEmpty()) {
+            if (replaceDialog.getDialogPane().getButtonTypes().isEmpty()) {
                 replaceDialog.setTitle("Replace");
                 replaceDialog.setHeaderText(null);
 
@@ -311,7 +442,7 @@ public class Core extends Application {
                     @Override
                     public void handle(ActionEvent event) {
                         while ((pos = textArea.getText().toUpperCase().indexOf(word.getText().toUpperCase(), pos)) >= 0) {
-                            textArea.selectRange(pos,(pos + word.getText().length()));
+                            textArea.selectRange(pos, (pos + word.getText().length()));
                             textArea.replaceSelection(replaceWord.getText());
                             pos += word.getText().length();
                             break;
@@ -324,7 +455,7 @@ public class Core extends Application {
                     @Override
                     public void handle(ActionEvent event) {
                         while ((pos = textArea.getText().toUpperCase().indexOf(word.getText().toUpperCase(), pos)) >= 0) {
-                            textArea.selectRange(pos,(pos + word.getText().length()));
+                            textArea.selectRange(pos, (pos + word.getText().length()));
                             textArea.replaceSelection(replaceWord.getText());
                             pos += word.getText().length();
                         }
